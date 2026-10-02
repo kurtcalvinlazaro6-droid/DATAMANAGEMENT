@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="tl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Management</title>
+<style>body{margin:0;padding:20px;background:#f6f6f2}#dm-app{max-width:1100px;margin:0 auto}</style>
+</head>
+<body>
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Data Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://unpkg.com https://gallant-peccary-933.convex.site; media-src data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://unpkg.com https://gallant-peccary-933.convex.site; font-src data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://unpkg.com; style-src 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://unpkg.com; script-src 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://unpkg.com; connect-src https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://unpkg.com https://data-management-5b19e-default-rtdb.asia-southeast1.firebasedatabase.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; form-action 'none'" />
+    <!--
+      Pontano Sans is the brand face, but a sandboxed srcdoc iframe is an opaque origin and does not
+      inherit the host document's fonts. jsdelivr is already in CDN_SOURCES, so this adds no origin.
+      Loaded non-blocking: a plain stylesheet link here would sit ahead of the bridge script and
+      hold both it and first paint until the request settled, so a slow or blocked CDN would leave
+      the host on its skeleton. media="print" keeps it out of the critical path and the onload
+      hands it back, so the widget paints immediately in the fallback stack and swaps when it lands.
+    -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fontsource-variable/pontano-sans@5/index.css"
+      media="print"
+      onload="this.media='all'"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans@5/index.css"
+      media="print"
+      onload="this.media='all'"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-arabic@5/index.css"
+      media="print"
+      onload="this.media='all'"
+    />
+    <style>
+      :root {
+        --color-background-primary: #FFFFFF;
+        --color-background-secondary: #EDEDF7;
+        --color-text-primary: #000C1A;
+        /* mutedAccessible, not muted: muted is ~4.1:1 and fails AA at the label sizes widgets use. */
+        --color-text-secondary: #6B6B76;
+        --color-border-primary: #C7C7C7;
+        --color-border-secondary: #DBDBDB;
+        /* Without a brand accent here, generated widgets invent their own (Tailwind emerald/blue/orange). */
+        --color-accent-primary: #4F378A;
+        --color-accent-success: #50a456;
+        --color-accent-danger: #d23737;
+        --font-sans: "Pontano Sans Variable", "Pontano Sans", "Noto Sans Variable", "Noto Sans", "Noto Sans Arabic Variable", "Noto Sans Arabic", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --font-mono: "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+        --border-radius-sm: 4px;
+        --border-radius-md: 8px;
+        --border-radius-lg: 12px;
+        --border-radius-xl: 16px;
+        --border-radius-2xl: 20px;
+        --border-radius-pill: 999px;
+        color-scheme: light;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100%;
+        background: transparent;
+        color: var(--color-text-primary);
+        font-family: var(--font-sans);
+        overflow-x: hidden;
+      }
+
+      body {
+        display: flex;
+        /* Not stretch: the root's height is what the host sizes its frame to, and a
+           stretched flex item would always measure as tall as the frame already is. */
+        align-items: flex-start;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      .askroi-widget-root {
+        width: 100%;
+        max-width: 100%;
+        /* No top padding: the host already spaces the widget below its chrome, and a second
+           gap here left the content floating away from the surface it belongs to. */
+        padding: 0 16px 16px;
+        margin: 0 auto;
+        display: flex;
+        overflow-x: hidden;
+        overflow-y: visible;
+        isolation: isolate;
+      }
+
+      .askroi-widget-content {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+      }
+
+      .askroi-widget-content > * {
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0;
+      }
+
+      .askroi-widget-root *,
+      .askroi-widget-content * {
+        max-width: 100%;
+        min-width: 0;
+      }
+
+      .askroi-widget-root img,
+      .askroi-widget-root svg,
+      .askroi-widget-root canvas,
+      .askroi-widget-root video,
+      .askroi-widget-root iframe {
+        display: block;
+        max-width: 100% !important;
+      }
+
+      .askroi-widget-root img,
+      .askroi-widget-root video {
+        height: auto !important;
+      }
+
+      .askroi-widget-root svg,
+      .askroi-widget-root canvas {
+        margin-inline: auto;
+        height: auto;
+        position: relative;
+        z-index: 1;
+      }
+
+      /* Text-over-graphics layering: text renders above SVG/canvas */
+      .askroi-widget-root .text-layer {
+        position: relative;
+        z-index: 2;
+      }
+
+      .askroi-widget-root .graphic-layer {
+        position: relative;
+        z-index: 1;
+      }
+
+      .askroi-widget-root button,
+      .askroi-widget-root input,
+      .askroi-widget-root select,
+      .askroi-widget-root textarea {
+        font: inherit;
+        max-width: 100%;
+        min-width: 0;
+        position: relative;
+        z-index: 3;
+      }
+
+      .askroi-widget-root button {
+        white-space: normal;
+      }
+
+      /*
+       * An icon inside a control is not responsive media. The max-width: 100% above
+       * resolves against the control's own content box, so a button squeezed by a narrow
+       * table column crushed its 16px glyph to 2.3px while keeping full height.
+       */
+      .askroi-widget-root button svg,
+      .askroi-widget-root a svg,
+      .askroi-widget-root label svg {
+        flex: none;
+        max-width: none !important;
+      }
+
+      .askroi-widget-root button:has(> svg:only-child) {
+        min-width: 24px;
+        min-height: 24px;
+      }
+
+      /*
+       * Accessibility floor. Generated widgets routinely clear the UA outline and never
+       * replace it, leaving every control with no keyboard affordance. !important because
+       * the widget's own reset is what we are overriding; a widget wanting a custom ring can
+       * still layer one with box-shadow.
+       */
+      .askroi-widget-root :focus-visible {
+        outline: 2px solid var(--color-accent-primary) !important;
+        outline-offset: 2px;
+      }
+
+      .askroi-widget-root table {
+        display: block;
+        max-width: 100%;
+        overflow-x: auto;
+      }
+
+      /*
+       * Any scroll container, including one the model authored itself rather than the forced
+       * table rule above. Chromium's overlay scrollbars stay invisible until a scroll starts,
+       * which is exactly when the affordance is no longer needed. Styling the scrollbar opts
+       * this container into a classic always-drawn one. Deliberately no scrollbar-width or
+       * scrollbar-color: setting either makes Chromium ignore these rules and revert to overlay.
+       */
+      .askroi-widget-root ::-webkit-scrollbar {
+        height: 8px;
+        width: 8px;
+      }
+
+      .askroi-widget-root ::-webkit-scrollbar-thumb {
+        background: var(--color-border-primary);
+        border-radius: 999px;
+      }
+
+      .askroi-widget-root ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .askroi-widget-root,
+        .askroi-widget-root * {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+
+      .askroi-widget-root,
+      .askroi-widget-root * {
+        overflow-wrap: break-word;
+      }
+
+      .askroi-widget-root p,
+      .askroi-widget-root h1,
+      .askroi-widget-root h2,
+      .askroi-widget-root h3,
+      .askroi-widget-root h4,
+      .askroi-widget-root h5,
+      .askroi-widget-root h6,
+      .askroi-widget-root span,
+      .askroi-widget-root label,
+      .askroi-widget-root li,
+      .askroi-widget-root dt,
+      .askroi-widget-root dd,
+      .askroi-widget-root td,
+      .askroi-widget-root th,
+      .askroi-widget-root caption {
+        white-space: normal;
+      }
+    </style>
+    
+    
+    <script>
+      (() => {
+        const bridgeScript = document.currentScript;
+        // Every value below is script-escaped, and this source must never contain a literal
+        // closing script tag: the HTML parser ends the element there, even inside a comment.
+        const BRIDGE_TOKEN = null;
+        const HOST_PARENT_ORIGIN = null;
+        const APP_BASE_URL = null;
+        // The MCP Apps dialect this runtime speaks to its host (see lib/html-widget/bridge.ts).
+        const METHOD = {"initialized":"ui/notifications/initialized","sizeChanged":"ui/notifications/size-changed","message":"ui/message","openLink":"ui/open-link","downloadFile":"ui/download-file","log":"notifications/message","dismiss":"askroi/notifications/dismiss","roomPatch":"askroi/notifications/room-patch","roomPresence":"askroi/notifications/room-presence","liveData":"askroi/notifications/live-data","roomState":"askroi/notifications/room-state","roomMembers":"askroi/notifications/room-members","roomRejected":"askroi/notifications/room-rejected","roomFlush":"askroi/notifications/room-flush","roomFlushed":"askroi/notifications/room-flushed","roomResume":"askroi/notifications/room-resume","roomLeaving":"askroi/notifications/room-leaving","roomPending":"askroi/notifications/room-pending"};
+        const MAX_PROMPT_LENGTH = 2000;
+        const TRUSTED_PROMPT_WINDOW_MS = 4000;
+        // Bound here, before any widget code runs: a call through Function.prototype.call
+        // at use time would let a widget that replaced it answer with -Infinity and turn the
+        // interaction-window arithmetic into NaN, which passes every gate.
+        const now = (() => {
+          const performanceObject = window.performance;
+          const performanceNow = performanceObject && performanceObject.now;
+          if (typeof performanceNow === 'function') return performanceNow.bind(performanceObject);
+          return Date.now.bind(Date);
+        })();
+        // The literal, never Number.NEGATIVE_INFINITY: Number is a mutable global a widget can
+        // replace with one whose sentinel is +Infinity, which would never count as spent.
+        let lastTrustedPromptInteractionAt = -Infinity;
+
+        // Captured before any widget HTML runs: a widget that wrapped the global later could
+        // read the token off every outbound message (console.log alone sends one) and forge
+        // downloads with it. window.parent needs no capture; a cross-origin WindowProxy's
+        // postMessage cannot be replaced from inside the frame.
+        const nativeSender =
+          window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function'
+            ? window.ReactNativeWebView.postMessage.bind(window.ReactNativeWebView)
+            : null;
+        // The serialization path is captured too, and the outbound envelope has no prototype
+        // at any level that carries the token: a replaced JSON.stringify or an
+        // Object.prototype.toJSON would otherwise see it on its way out.
+        const serialize = JSON.stringify;
+        const createObject = Object.create;
+        const assignObject = Object.assign;
+        const hasHostBridge = () =>
+          Boolean(nativeSender || (HOST_PARENT_ORIGIN && window.parent && window.parent !== window));
+
+        // A JSON-RPC notification, or a request when the method is one the standard defines
+        // as such. The host answers requests, but nothing here waits on a result: every check
+        // runs before the send, so the reply carries nothing the runtime needs.
+        let nextRequestId = 0;
+        const buildHostMessage = (method, params, request) => {
+          const message = createObject(null);
+          message.jsonrpc = '2.0';
+          message.method = method;
+          if (request) message.id = ++nextRequestId;
+          message.params = assignObject(createObject(null), params);
+          if (BRIDGE_TOKEN) {
+            message.params._meta = createObject(null);
+            message.params._meta.bridgeToken = BRIDGE_TOKEN;
+          }
+          return message;
+        };
+
+        const postToHost = (method, params, request) => {
+          try {
+            const message = buildHostMessage(method, params, request);
+            if (nativeSender) {
+              nativeSender(serialize(message));
+              return;
+            }
+            if (HOST_PARENT_ORIGIN && window.parent && window.parent !== window) {
+              window.parent.postMessage(message, HOST_PARENT_ORIGIN);
+            }
+          } catch {}
+        };
+
+        const createMemoryStorage = () => {
+          const store = new Map();
+          return {
+            get length() {
+              return store.size;
+            },
+            clear() {
+              store.clear();
+            },
+            getItem(key) {
+              return store.has(String(key)) ? store.get(String(key)) : null;
+            },
+            key(index) {
+              return Array.from(store.keys())[index] ?? null;
+            },
+            removeItem(key) {
+              store.delete(String(key));
+            },
+            setItem(key, value) {
+              store.set(String(key), String(value));
+            },
+          };
+        };
+
+        const installStorageShim = (name) => {
+          const storage = createMemoryStorage();
+          try {
+            Object.defineProperty(window, name, {
+              configurable: true,
+              enumerable: true,
+              get() {
+                return storage;
+              },
+            });
+            return;
+          } catch {}
+          try {
+            window[name] = storage;
+          } catch {}
+        };
+
+        installStorageShim('localStorage');
+        installStorageShim('sessionStorage');
+
+        const postRuntimeLog = (level, parts, kind) => {
+          const list = (Array.isArray(parts) ? parts : [parts]).filter(
+            (part) => typeof part === 'string' && part.length > 0,
+          );
+          if (list.length === 0) return;
+          // MCP logging levels on the wire; the source of the entry travels as its logger.
+          postToHost(METHOD.log, { level: level === 'warn' ? 'warning' : level, data: list, logger: kind || 'console' });
+        };
+
+        const wrapConsoleMethod = (level) => {
+          const original = console[level];
+          console[level] = (...args) => {
+            try {
+              // Each arg is serialized separately so the host can parse and
+              // redact structured payloads before they reach captured logs.
+              const parts = args.map((arg) => {
+                if (typeof arg === 'string') return arg;
+                try {
+                  return JSON.stringify(arg);
+                } catch {
+                  return String(arg);
+                }
+              });
+              const bridgeLevel = level === 'log' ? 'info' : level;
+              postRuntimeLog(bridgeLevel, parts);
+            } catch {}
+
+            if (typeof original === 'function') {
+              original.apply(console, args);
+            }
+          };
+        };
+
+        wrapConsoleMethod('log');
+        wrapConsoleMethod('warn');
+        wrapConsoleMethod('error');
+
+        window.addEventListener('error', (event) => {
+          postRuntimeLog('error', event.message || 'Unknown widget error', 'uncaught');
+        });
+
+        // For a widget whose CDN dependency never arrived. Reported apart from an uncaught
+        // error because the host must not record it against the html: a document keeps its
+        // failed module URLs failed for its whole life, so remounting is the only repair, and
+        // no rewrite of the widget's own source can make the CDN answer.
+        window.reportLoadFailure = (message) => {
+          postRuntimeLog(
+            'error',
+            typeof message === 'string' && message.length > 0 ? message : 'A widget dependency failed to load',
+            'dependency',
+          );
+        };
+
+        window.addEventListener('unhandledrejection', (event) => {
+          const reason =
+            typeof event.reason === 'string'
+              ? event.reason
+              : event.reason && typeof event.reason.message === 'string'
+                ? event.reason.message
+                : 'Unhandled widget promise rejection';
+          postRuntimeLog('error', reason, 'unhandled_rejection');
+        });
+
+        // The content root, not documentElement.scrollHeight: html and body carry
+        // min-height: 100%, so the document could never report smaller than the frame
+        // the host had already given it. A collapsed section then never shrank the
+        // card, and the frame growing to fit the report grew the report in turn.
+        const RESIZE_DELTA_PX = 2;
+        const RESIZE_TRAILING_MS = 150;
+        let resizeRaf = null;
+        let trailingResize = null;
+        let lastReportedHeight = null;
+        // Resolved lazily: this script runs from <head>, before the root is parsed.
+        let widgetRoot = null;
+        const getWidgetRoot = () =>
+          (widgetRoot ??= document.querySelector('.askroi-widget-root, .askroi-motion-root'));
+        const measureHeight = () => {
+          const root = getWidgetRoot();
+          return Math.ceil(root ? root.getBoundingClientRect().height : document.documentElement.scrollHeight);
+        };
+        const reportHeight = (height) => {
+          lastReportedHeight = height;
+          postToHost(METHOD.sizeChanged, { height });
+        };
+        // Sub-threshold changes (an animating widget) are coalesced into one trailing
+        // report instead of a bridge message per frame; the host still settles on the
+        // final height because the trailing pass re-measures.
+        const queueResize = () => {
+          if (resizeRaf !== null) return;
+          resizeRaf = window.requestAnimationFrame(() => {
+            resizeRaf = null;
+            const height = measureHeight();
+            if (lastReportedHeight === null || Math.abs(height - lastReportedHeight) >= RESIZE_DELTA_PX) {
+              if (trailingResize !== null) {
+                window.clearTimeout(trailingResize);
+                trailingResize = null;
+              }
+              reportHeight(height);
+              return;
+            }
+            if (trailingResize !== null) return;
+            trailingResize = window.setTimeout(() => {
+              trailingResize = null;
+              const settled = measureHeight();
+              if (settled !== lastReportedHeight) reportHeight(settled);
+            }, RESIZE_TRAILING_MS);
+          });
+        };
+
+        // A held key auto-repeats trusted keydowns; only the initial press is a gesture.
+        const isActivationKey = (event) =>
+          event.repeat !== true && (event.key === 'Enter' || event.key === ' ');
+
+        // A tap dispatches pointerdown and then click, and Enter or Space on a button
+        // dispatches keydown and then a synthesized click. Each precursor arms the prompt
+        // window; the click that follows must not re-arm a window the precursor's
+        // sendPrompt already consumed, or one activation could send two prompts.
+        let gestureArmedByPrecursor = false;
+        const armFromPrecursor = () => {
+          gestureArmedByPrecursor = true;
+          lastTrustedPromptInteractionAt = now();
+        };
+        document.addEventListener(
+          'pointerdown',
+          (event) => {
+            if (event && event.isTrusted === true) armFromPrecursor();
+          },
+          true
+        );
+        document.addEventListener(
+          'keydown',
+          (event) => {
+            if (event && event.isTrusted === true && isActivationKey(event)) armFromPrecursor();
+          },
+          true
+        );
+        document.addEventListener(
+          'pointercancel',
+          () => {
+            gestureArmedByPrecursor = false;
+          },
+          true
+        );
+        document.addEventListener(
+          'click',
+          (event) => {
+            if (!event || event.isTrusted !== true) return;
+            if (gestureArmedByPrecursor) {
+              gestureArmedByPrecursor = false;
+              return;
+            }
+            lastTrustedPromptInteractionAt = now();
+          },
+          true
+        );
+
+        window.sendPrompt = (text) => {
+          if (typeof text !== 'string') return;
+          const trimmed = text.trim();
+          if (trimmed.length === 0 || trimmed.length > MAX_PROMPT_LENGTH) return;
+          if (now() - lastTrustedPromptInteractionAt > TRUSTED_PROMPT_WINDOW_MS) {
+            postRuntimeLog('warn', 'Blocked sendPrompt without recent user interaction');
+            return;
+          }
+          // One prompt per gesture: each is a billed turn, so a loop behind one click must
+          // not fan out into hundreds. The host drops in-flight duplicates as well.
+          lastTrustedPromptInteractionAt = -Infinity;
+          if (!hasHostBridge()) {
+            // Standalone document: there is no chat to receive the prompt, so
+            // deep-link the viewer into an askROI chat prefilled with it.
+            if (APP_BASE_URL) {
+              window.open(
+                APP_BASE_URL + '/?inputValue=' + encodeURIComponent(trimmed),
+                '_blank',
+                'noopener,noreferrer'
+              );
+            }
+            return;
+          }
+          postToHost(METHOD.message, { role: 'user', content: [{ type: 'text', text: trimmed }] }, true);
+        };
+
+        // Hosted documents get this filtering from the host bridge
+        // (normalizeWidgetExternalUrl); standalone documents must enforce it here.
+        const toSafeExternalUrl = (url) => {
+          try {
+            // baseURI, not location: inside a srcdoc iframe (published sites)
+            // location is about:srcdoc while anchors resolve against the embedder.
+            const parsed = new URL(url, document.baseURI);
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+              return parsed.href;
+            }
+          } catch {}
+          return null;
+        };
+
+        // Only while a trusted gesture is being dispatched, so the opening element is the
+        // one under the user's finger. A document-wide timed window let a tap anywhere
+        // open any URL, which on native closes the sheet and leaves the app.
+        const isInsideTrustedGesture = () => {
+          const current = window.event;
+          if (!current || current.isTrusted !== true) return false;
+          if (current.type === 'click' || current.type === 'pointerdown') return true;
+          // Plain typing, Tab and Escape must not open links: only activation keys count.
+          return current.type === 'keydown' && isActivationKey(current);
+        };
+
+        window.openLink = (url) => {
+          if (typeof url !== 'string' || url.trim().length === 0) return;
+          if (!isInsideTrustedGesture()) {
+            postRuntimeLog('warn', 'Blocked openLink outside a user gesture');
+            return;
+          }
+          if (!hasHostBridge()) {
+            // Standalone document: no host to open the URL, and widgets wire their
+            // own onclick handlers to openLink, so open it here. A new tab keeps a
+            // sandboxed top-level page in place and escapes its sandbox.
+            const safeUrl = toSafeExternalUrl(url.trim());
+            if (!safeUrl) {
+              postRuntimeLog('warn', 'Blocked openLink for a non-http(s) URL');
+              return;
+            }
+            window.open(safeUrl, '_blank', 'noopener,noreferrer');
+            return;
+          }
+          postToHost(METHOD.openLink, { url: url.trim() }, true);
+        };
+
+        // No sandbox grants allow-downloads, so an anchor download inside the widget is
+        // silently inert. The host saves the file on the widget's behalf instead.
+        const MAX_DOWNLOAD_LENGTH = 20971520;
+        const MAX_DOWNLOAD_ENCODED_LENGTH = 27962028;
+        // Gated exactly like sendPrompt: on the window our own capture-phase listeners arm
+        // from a trusted event, spent on accept so one activation buys one download (the
+        // click after a pointerdown does not re-arm it). window.event is never consulted
+        // here; a widget can shadow it with a plain object that claims isTrusted.
+        window.downloadFile = (filename, content, mimeType, encoding) => {
+          if (typeof filename !== 'string' || filename.trim().length === 0) return;
+          const maxLength = encoding === 'base64' ? MAX_DOWNLOAD_ENCODED_LENGTH : MAX_DOWNLOAD_LENGTH;
+          if (typeof content !== 'string' || content.length === 0 || content.length > maxLength) {
+            postRuntimeLog('warn', 'Blocked downloadFile: content must be a non-empty string under the size cap');
+            return;
+          }
+          if (now() - lastTrustedPromptInteractionAt > TRUSTED_PROMPT_WINDOW_MS) {
+            postRuntimeLog('warn', 'Blocked downloadFile without recent user interaction');
+            return;
+          }
+          lastTrustedPromptInteractionAt = -Infinity;
+          const name = filename.trim();
+          const type = typeof mimeType === 'string' && mimeType.length > 0 ? mimeType : 'application/octet-stream';
+          const isBase64 = encoding === 'base64';
+          // One embedded resource, as ui/download-file carries it: text for UTF-8, blob for base64.
+          const resource = { uri: 'file:///' + encodeURIComponent(name), name, mimeType: type };
+          resource[isBase64 ? 'blob' : 'text'] = content;
+          const download = { contents: [{ type: 'resource', resource }] };
+          if (!hasHostBridge()) {
+            if (BRIDGE_TOKEN && window.parent !== window) {
+              // Published site: the sandbox keeps anchor downloads inert on purpose, so the
+              // trusted shell around this frame saves on the widget's behalf. The token is
+              // what lets the shell tell this runtime from widget code posting on its own.
+              window.parent.postMessage(buildHostMessage(METHOD.downloadFile, download, true), '*');
+              return;
+            }
+            // Exported file opened directly: no sandbox, an anchor download works.
+            const bytes = isBase64
+              ? Uint8Array.from(atob(content), (character) => character.charCodeAt(0))
+              : new TextEncoder().encode(content);
+            const url = URL.createObjectURL(new Blob([bytes], { type }));
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = name;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(url);
+            return;
+          }
+          postToHost(METHOD.downloadFile, download, true);
+        };
+
+        // Live data arrives after first paint (#4400). Rebuilding the document instead would
+        // remount the frame on every refresh tick, losing scroll position, selected tabs and
+        // any other state the widget holds. Widgets re-read window.__WIDGET_DATA__ on this
+        // event; one that ignores it simply keeps its first-paint values.
+        const applyLiveData = (json) => {
+          if (json !== null && typeof json !== 'string') return;
+          try {
+            // null clears: the widget stopped tracking that source, so continuing to render
+            // its last values would be worse than rendering the no-data state.
+            const next = json === null ? undefined : JSON.parse(json);
+            window.__WIDGET_DATA__ = next;
+            window.dispatchEvent(new CustomEvent('askroi:widgetdata', { detail: next }));
+          } catch (error) {
+            postRuntimeLog('warn', 'Ignored malformed live data update');
+          }
+        };
+
+        window.__ASKROI_WIDGET__ = {
+          bridgeVersion: '1',
+          widgetTitle: "Data Management",
+          // Describes the localStorage/sessionStorage shim, which is memory-only in every
+          // widget, a shared one included. The room is a separate API on window.room, and
+          // saying 'shared' here would read as "localStorage persists", which it does not.
+          storage: 'memory-only',
+          room: false,
+        };
+
+        // Host notifications arrive as JSON-RPC message events, the same envelope the host
+        // receives. Responses to this runtime's own requests carry no method and fall through.
+        window.addEventListener('message', (event) => {
+          // Same-origin check is impossible here (a srcdoc frame is an opaque origin). Framed on
+          // web, the embedder is the only legitimate sender, so the sender is authenticated as
+          // the parent window; a native WebView is top-level and the host dispatches the event
+          // from the widget's own window instead (buildMcpAppNativeInjection).
+          // No token travels this way: widget scripts could read it off the same event.
+          if (window.parent && window.parent !== window && event.source !== window.parent) return;
+          const message = event.data;
+          if (!message || typeof message !== 'object' || message.jsonrpc !== '2.0') return;
+          if (typeof message.method !== 'string') return;
+          const params = message.params && typeof message.params === 'object' ? message.params : {};
+          if (message.method === METHOD.liveData) {
+            if (params.data !== null && typeof params.data !== 'string') return;
+            applyLiveData(params.data);
+            return;
+          }
+
+        });
+
+        document.addEventListener(
+          'click',
+          (event) => {
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+            const anchor = target.closest('a[href]');
+            if (!(anchor instanceof HTMLAnchorElement)) return;
+            if (!hasHostBridge()) {
+              // Standalone document (published site, exported file): openLink has no
+              // recipient, so let the browser navigate. A new tab keeps a sandboxed
+              // top-level page in place and escapes its sandbox.
+              const destination = toSafeExternalUrl(anchor.href);
+              if (!destination) {
+                event.preventDefault();
+                return;
+              }
+              // Same-document fragment: scroll in place instead of duplicating the
+              // page into a new tab. Compared against baseURI because a srcdoc
+              // iframe's own location is about:srcdoc, and scrolled explicitly
+              // because fragment navigation there has no document to resolve against.
+              const dest = new URL(destination);
+              const base = new URL(document.baseURI);
+              // No dest.hash guard: an href of "#" with an onclick handler is a common
+              // generated pattern and its hash parses as empty, so requiring one sent
+              // it to a duplicate tab of the whole page.
+              if (
+                dest.origin === base.origin &&
+                dest.pathname === base.pathname &&
+                dest.search === base.search
+              ) {
+                event.preventDefault();
+                const fragmentId = dest.hash.slice(1);
+                const fragmentTarget =
+                  document.getElementById(fragmentId) || document.getElementsByName(fragmentId)[0];
+                if (fragmentTarget) fragmentTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                return;
+              }
+              anchor.target = '_blank';
+              anchor.rel = 'noopener noreferrer';
+              return;
+            }
+            event.preventDefault();
+            window.openLink(anchor.href);
+          },
+          true
+        );
+
+        // A cross-origin iframe swallows keyboard events, so the host's own Escape
+        // listener goes deaf the moment the user clicks into the widget.
+        window.addEventListener('keydown', (event) => {
+          if (event && event.isTrusted === true && event.key === 'Escape' && !event.defaultPrevented) {
+            postToHost(METHOD.dismiss, {});
+          }
+        });
+
+        // Ready on DOMContentLoaded, not load: load also waits on the font stylesheet and
+        // every CDN script, which on a slow mobile network kept the host on its skeleton
+        // with no way out (#4629). The markup is parsed and the bridge is live by then.
+        document.addEventListener('DOMContentLoaded', () => {
+          postToHost(METHOD.initialized, {});
+          queueResize();
+
+          // Observed from ready, not load: a widget whose own code grows it while a
+          // subresource hangs would otherwise stay clipped at the initial host height.
+          if ('ResizeObserver' in window) {
+            const observer = new ResizeObserver(() => queueResize());
+            observer.observe(getWidgetRoot() || document.documentElement);
+          } else {
+            window.setInterval(queueResize, 300);
+          }
+        });
+
+        window.addEventListener('load', () => {
+          postRuntimeLog('info', 'Widget window loaded');
+          queueResize();
+        });
+
+        try {
+          if (bridgeScript && bridgeScript.parentNode) {
+            bridgeScript.parentNode.removeChild(bridgeScript);
+          }
+        } catch {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div class="askroi-widget-root">
+      <div class="askroi-widget-content">
+        <div class="dm-app" id="dm-app">
+  <section class="firebase-panel" aria-live="polite"><div class="firebase-copy"><strong id="firebase-title">Firebase sync: hindi pa konektado</strong><span id="firebase-detail">I-set up ang Firebase para maibahagi ang members at tracker data sa ibang device.</span></div><div class="firebase-actions"><button type="button" id="firebase-open" class="firebase-connect">Connect Firebase</button><button type="button" id="firebase-disconnect" class="firebase-disconnect" hidden>Disconnect</button></div></section>
+  <div class="firebase-modal" id="firebase-modal" hidden><div class="firebase-shade" data-firebase-close></div><section class="firebase-dialog" role="dialog" aria-modal="true" aria-labelledby="firebase-heading"><h3 id="firebase-heading">Connect to Firebase</h3><p>Ilagay ang Web API key at Email/Password account mula sa Firebase Authentication. Hindi ise-save ang password.</p><form id="firebase-form"><label for="firebase-api-key">Firebase Web API key</label><input id="firebase-api-key" name="apiKey" type="text" autocomplete="off" required placeholder="AIza…"><label for="firebase-email">Email</label><input id="firebase-email" name="email" type="email" autocomplete="username" required placeholder="name@example.com"><label for="firebase-password">Password</label><input id="firebase-password" name="password" type="password" autocomplete="current-password" required><p class="firebase-error" id="firebase-error" role="alert" hidden></p><div class="firebase-dialog-actions"><button type="button" class="firebase-cancel" data-firebase-close>Cancel</button><button type="submit" class="firebase-connect" id="firebase-submit">Sign in and connect</button></div></form><p class="firebase-note">Kailangan naka-enable ang Email/Password provider sa Firebase Authentication at may read/write permission ang account sa path na team-data-management.</p><section class="firebase-public"><h4>Temporary public rules</h4><p>Pinapahintulutan ng rules sa screenshot ang sinuman na magbasa at magsulat ng data hanggang sa petsang itinakda. Huwag gamitin para sa tunay na prospect records, Facebook links, o pribadong impormasyon.</p><label class="firebase-consent"><input type="checkbox" id="firebase-public-confirm"><span>Nauunawaan ko na pampubliko ang read/write access at gusto kong ikonekta gamit ang kasalukuyang rules.</span></label><button type="button" id="firebase-open-rules" class="firebase-cancel" disabled>Connect using public rules</button></section></section></div>
+  <header class="dm-head">
+    <div><p class="dm-kicker" id="view-kicker">TEAM DIRECTORY</p><h2 id="view-title">Data Management</h2><p class="dm-sub" id="view-subtitle">Pumili ng member para buksan ang sariling tracker.</p></div>
+    <div class="team-head-actions"><button class="dm-add" type="button" data-action="add-day" aria-label="Add new member"><span aria-hidden="true">+</span> Add new member</button><button class="team-back" type="button" data-action="team-back">← All members</button></div>
+  </header>
+  <section class="team-home" id="team-home" aria-label="Pumili ng member"><div class="team-home-head"><div><h3>Members</h3><p>Piliin ang pangalan para buksan ang sariling Data Management.</p></div><span id="team-count"></span></div><div class="team-rail-wrap"><div class="team-rail" id="team-rail"></div></div><p class="team-swipe" id="team-swipe">I-swipe pakaliwa o pakanan para makita ang iba pang member.</p></section>
+  <section class="dm-board" aria-label="Mga araw">
+    <div class="dm-board-top"><span>SECTION</span><span id="day-count"></span></div>
+    <div class="dm-days" id="days"></div>
+  </section>
+  <section class="dm-work" id="work" aria-live="polite"></section>
+  <div class="team-modal" id="add-modal" hidden><div class="team-shade" data-action="close-add"></div><section class="team-dialog" role="dialog" aria-modal="true" aria-labelledby="add-title"><h3 id="add-title">Add new member</h3><p>Bawat pangalan ay magkakaroon ng sariling tracker.</p><form id="add-form"><label for="member-name">Pangalan</label><input id="member-name" maxlength="40" required autocomplete="off" placeholder="Ilagay ang pangalan"><div class="team-modal-actions"><button type="button" class="dm-quiet" data-action="close-add">Cancel</button><button type="submit" class="dm-save">Add member</button></div></form></section></div>
+  <p class="dm-foot">Ang data ay sine-save sa browser na ito. Huwag burahin ang browser data kung gusto mong manatili ang records.</p>
+</div>
+<style>
+.dm-app{--ink:var(--color-text-primary,#20221f);--muted:var(--color-text-secondary,#6b6f68);--line:var(--color-border-primary,#d9dcd6);--paper:var(--color-background-primary,#fff);--soft:var(--color-background-secondary,#f5f6f2);--accent:var(--color-accent-primary,#bd641f);font-family:var(--font-sans,Arial,sans-serif);color:var(--ink);width:100%;max-width:100%;box-sizing:border-box}
+.dm-app *{box-sizing:border-box}.dm-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:0 0 18px}.dm-kicker{font:600 11px/1.2 var(--font-mono,monospace);letter-spacing:.12em;color:var(--muted);margin:0 0 7px}.dm-head h2{font-size:23px;line-height:1.15;margin:0;font-weight:700;letter-spacing:-.03em}.dm-sub{font-size:13px;color:var(--muted);margin:7px 0 0;line-height:1.45}.dm-add{height:42px;white-space:nowrap;border:0;border-radius:var(--border-radius-md,8px);background:var(--accent);color:#fff;font:600 13px var(--font-sans,Arial,sans-serif);padding:0 14px;cursor:pointer}.dm-add span{font-size:18px;vertical-align:-1px;margin-right:5px}.dm-app button:focus-visible,.dm-app input:focus-visible,.dm-app select:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,white);outline-offset:2px}
+.dm-board{background:#f8bf5b;border:1px solid #e4a73e;border-radius:var(--border-radius-lg,12px);padding:14px;min-height:132px}.dm-board-top{display:flex;justify-content:space-between;align-items:center;font:600 10px/1.2 var(--font-mono,monospace);letter-spacing:.1em;color:#69451a;margin-bottom:11px}.dm-board-top span:last-child{letter-spacing:0;font-weight:500}.dm-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:9px}.dm-day{position:relative;text-align:left;min-width:0;min-height:100px;padding:11px 11px 10px;border:1px solid rgba(78,54,19,.24);border-radius:7px;background:#fff4dc;color:#28251f;cursor:pointer;transition:background-color .15s,border-color .15s,transform .15s}.dm-day:hover{transform:translateY(-1px);background:#fff9eb}.dm-day[aria-pressed="true"]{background:#fff;border:2px solid #75501e;padding:10px 10px 9px}.dm-day-title{display:block;font-size:14px;font-weight:700;margin-bottom:8px}.dm-day-line{display:flex;justify-content:space-between;gap:6px;font-size:11px;line-height:1.55;color:#645942}.dm-day-line strong{color:#29271f;font-weight:700}.dm-day-empty{font-size:11px;color:#75684f;margin-top:6px}.dm-work{margin-top:20px}.dm-work-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}.dm-work-head h3{font-size:18px;line-height:1.2;margin:0;font-weight:700}.dm-work-head p{margin:5px 0 0;color:var(--muted);font-size:12px}.dm-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.dm-quiet,.dm-save,.dm-addrow{min-height:39px;border-radius:var(--border-radius-md,8px);padding:0 12px;font:600 12px var(--font-sans,Arial,sans-serif);cursor:pointer}.dm-quiet{border:1px solid var(--line);background:var(--paper);color:var(--ink)}.dm-save{border:1px solid var(--accent);background:var(--accent);color:white}.dm-save:disabled{opacity:.58;cursor:default}.dm-table-note{font-size:11px;color:var(--muted);margin:0 0 7px}.dm-table-wrap{width:100%;max-width:100%;overflow-x:auto;border:1px solid var(--line);border-radius:var(--border-radius-md,8px);background:var(--paper);scrollbar-color:#a2a69e transparent}.dm-table{width:100%;min-width:1050px;border-collapse:collapse;table-layout:fixed}.dm-table th{height:38px;padding:8px 7px;text-align:left;background:var(--soft);border-bottom:1px solid var(--line);font-size:11px;color:var(--muted);font-weight:600}.dm-table th:nth-child(1){width:17%}.dm-table th:nth-child(2){width:20%}.dm-table th:nth-child(3){width:25%}.dm-table th:nth-child(4),.dm-table th:nth-child(5),.dm-table th:nth-child(6){width:11%}.dm-table th:last-child{width:5%}.dm-table td{padding:6px;border-bottom:1px solid var(--line);vertical-align:middle}.dm-table tr:last-child td{border-bottom:0}.dm-cell{width:100%;min-width:0;height:34px;border:1px solid transparent;border-radius:5px;background:transparent;padding:6px 7px;color:var(--ink);font:12px var(--font-sans,Arial,sans-serif)}.dm-cell:hover{border-color:var(--line)}.dm-cell:focus{background:var(--paper);border-color:var(--accent)}.dm-cell::placeholder{color:#a0a39c}.dm-status{font-size:11px;padding-right:4px}.dm-status.status-none{background:#fff0ef;color:#a32f34;border-color:#f1c9c8}.dm-status.status-active{background:#e9f6ec;color:#23683b;border-color:#c4e5cc}.dm-status.status-pl{background:#e9f1ff;color:#285cb0;border-color:#c6d8fa}.dm-lead-cell{display:grid;gap:4px}.dm-count-label{display:flex;flex-direction:column;align-items:flex-start;gap:2px;font-size:10px;color:var(--muted)}.dm-count{width:100%;max-width:none;height:28px;padding:4px 5px;text-align:left;background:var(--soft)}.dm-count:disabled{opacity:.55}.dm-remove{border:0;background:transparent;color:#7e817b;font-size:17px;line-height:1;cursor:pointer;width:28px;height:32px;border-radius:5px}.dm-remove:hover{background:#f3e7e5;color:#a32f34}.dm-table-bottom{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}.dm-addrow{border:1px dashed #aeb2aa;background:transparent;color:var(--ink)}.dm-draft-state{font-size:12px;color:var(--muted);text-align:right}.dm-metrics{display:grid;grid-template-columns:repeat(6,minmax(90px,1fr));gap:7px;margin-top:12px}.dm-metric{border-top:2px solid var(--line);padding:7px 4px 0;min-width:0}.dm-metric b{display:block;font-size:17px;line-height:1.1}.dm-metric span{display:block;font-size:10px;line-height:1.35;color:var(--muted);margin-top:4px}.dm-metric.red{border-color:#c84245}.dm-metric.green{border-color:#39854f}.dm-metric.blue{border-color:#3a6ec4}.dm-foot{font-size:11px;color:var(--muted);line-height:1.45;margin:16px 0 0}.dm-empty{font-size:13px;color:var(--muted);padding:18px 0;border-top:1px solid var(--line)}
+@media(max-width:600px){.dm-head{align-items:flex-start}.dm-head h2{font-size:21px}.dm-sub{max-width:230px}.dm-board{padding:11px}.dm-days{grid-template-columns:repeat(2,minmax(0,1fr))}.dm-day{min-height:96px;padding:9px}.dm-work-head{display:block}.dm-actions{justify-content:flex-start;margin-top:10px}.dm-metrics{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:12px}.dm-table-bottom{align-items:flex-start;flex-direction:column}.dm-draft-state{text-align:left}}
+@media(prefers-reduced-motion:reduce){.dm-day{transition:none}}
+.team-home{margin:0 0 24px}.team-home-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin:0 0 13px}.team-home-head h3{font-size:21px;margin:0}.team-home-head p{font-size:14px;color:var(--muted);margin:5px 0 0;line-height:1.45}.team-home-head #team-count{font-size:13px;color:var(--muted)}.team-rail-wrap{width:100%;max-width:100%}.team-rail{display:flex;gap:12px;overflow-x:auto;max-width:100%;padding:3px 3px 12px;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#999 transparent}.team-card{--team-color:#dce7cf;flex:0 0 205px;min-width:0;min-height:164px;scroll-snap-align:start;padding:14px;border:1px solid color-mix(in srgb,var(--team-color) 70%,#777);border-left:6px solid var(--team-color);border-radius:10px;background:var(--paper);display:flex;flex-direction:column;justify-content:space-between;gap:10px}.team-open{width:100%;min-height:91px;border:0;border-radius:7px;background:var(--team-color);padding:13px;text-align:left;color:#262923;font:700 19px/1.25 var(--font-sans,Arial,sans-serif);overflow-wrap:anywhere;cursor:pointer}.team-open:hover{filter:brightness(.96)}.team-open:focus-visible,.team-card button:focus-visible,.team-card input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}.team-summary{display:block;font-size:12px;font-weight:500;margin-top:7px;line-height:1.4;color:#41433f}.team-card-controls{display:flex;align-items:center;justify-content:space-between;gap:8px}.team-color{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;cursor:pointer}.team-color input{width:40px;height:40px;padding:3px;border:1px solid var(--line);border-radius:8px;background:var(--paper);cursor:pointer}.team-delete{height:40px;padding:0 10px;border:1px solid #e2b9b6;border-radius:var(--border-radius-md,8px);background:var(--paper);color:#9c3934;font:600 12px var(--font-sans,Arial,sans-serif);cursor:pointer}.team-delete:hover{background:#fff2f0}.team-swipe{font-size:12px;color:var(--muted);margin:3px 0 0}.team-empty{min-width:260px;border:1px dashed var(--line);border-radius:9px;padding:18px;color:var(--muted);font-size:14px}.team-modal[hidden]{display:none}.team-modal{position:fixed;inset:0;z-index:99;display:grid;place-items:center;padding:18px}.team-shade{position:absolute;inset:0;background:rgba(20,23,19,.48)}.team-dialog{position:relative;width:min(100%,420px);padding:24px;border:1px solid var(--line);border-radius:14px;background:var(--paper);color:var(--ink)}.team-dialog h3{font-size:22px;margin:0 0 8px}.team-dialog p{font-size:14px;line-height:1.5;color:var(--muted);margin:0 0 18px}.team-dialog form{display:grid;gap:9px}.team-dialog label{font-size:13px;font-weight:600}.team-dialog input{height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--border-radius-md,8px);background:var(--paper);color:var(--ink);font:15px var(--font-sans,Arial,sans-serif)}.team-modal-actions{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap;margin-top:18px}.team-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.dm-app.is-home .team-back{display:none}.team-back{height:44px;padding:0 13px;border:1px solid var(--line);border-radius:var(--border-radius-md,8px);background:var(--paper);color:var(--ink);font:600 13px var(--font-sans,Arial,sans-serif);cursor:pointer}.dm-app.is-home .dm-board,.dm-app.is-home .dm-work{display:none}.dm-app.is-member .team-home{display:none}.dm-app.is-member .dm-head{align-items:center}.dm-app.is-member .dm-head h2{font-size:24px;letter-spacing:0}
+@media(max-width:600px){.team-home{margin-bottom:18px}.team-home-head h3{font-size:20px}.team-home-head p{font-size:13px}.team-card{flex-basis:190px;min-height:156px;padding:12px}.team-open{min-height:88px;font-size:18px}.team-swipe{font-size:11px}.team-dialog{padding:20px}.dm-app.is-member .dm-head h2{font-size:22px}}
+
+.dm-app{font-size:15px;line-height:1.5}.dm-head{gap:20px;margin-bottom:24px}.dm-kicker{font-size:12px;letter-spacing:.14em;margin-bottom:8px}.dm-head h2{font-size:28px;line-height:1.12;letter-spacing:-.025em}.dm-sub{font-size:15px;line-height:1.55;margin-top:9px}.dm-add{height:48px;padding:0 18px;font-size:15px}.dm-add span{font-size:22px}.dm-board{padding:18px;min-height:162px}.dm-board-top{font-size:12px;margin-bottom:14px}.dm-days{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}.dm-day{min-height:128px;padding:14px;border-radius:9px}.dm-day[aria-pressed="true"]{padding:13px}.dm-day-title{font-size:17px;margin-bottom:10px}.dm-day-line{font-size:13px;line-height:1.65}.dm-day-empty{font-size:12px;line-height:1.45;margin-top:8px}.dm-work{margin-top:24px}.dm-work-head{gap:16px;margin-bottom:16px}.dm-work-head h3{font-size:21px}.dm-work-head p{font-size:14px;line-height:1.5;margin-top:6px}.dm-quiet,.dm-save,.dm-addrow{min-height:46px;padding:0 16px;font-size:14px}.dm-table-note{font-size:13px;line-height:1.5;margin-bottom:10px}.dm-table{min-width:1180px}.dm-table th{height:48px;padding:11px 10px;font-size:13px}.dm-table td{padding:9px 8px}.dm-cell{height:44px;padding:8px 10px;border-radius:6px;font-size:14px}.dm-status{font-size:13px}.dm-lead-cell{gap:6px}.dm-count-label{font-size:12px}.dm-count{height:40px;font-size:14px}.dm-remove{width:36px;height:36px;font-size:22px}.dm-table-bottom{gap:16px;margin-top:12px}.dm-draft-state{font-size:13px}.dm-metrics{grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:12px;margin-top:16px}.dm-metric{border-top-width:3px;padding:10px 7px 0}.dm-metric b{font-size:20px}.dm-metric span{font-size:12px;line-height:1.4;margin-top:6px}.dm-foot{font-size:13px;line-height:1.6;margin-top:20px}.dm-empty{font-size:15px;padding:22px 0}
+@media(max-width:600px){.dm-head{gap:12px;margin-bottom:18px}.dm-head h2{font-size:25px}.dm-sub{font-size:14px;max-width:220px}.dm-add{height:46px;padding:0 13px;font-size:14px}.dm-board{padding:14px;min-height:0}.dm-days{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dm-day{min-height:126px;padding:13px 11px}.dm-day[aria-pressed="true"]{padding:12px 10px}.dm-day-title{font-size:16px}.dm-day-line{font-size:12px;line-height:1.55}.dm-day-empty{font-size:11px}.dm-work-head h3{font-size:20px}.dm-work-head p{font-size:13px}.dm-actions{gap:8px}.dm-quiet,.dm-save,.dm-addrow{min-height:44px;padding:0 14px;font-size:13px}.dm-table-note{font-size:12px}.dm-table-wrap{-webkit-overflow-scrolling:touch}.dm-table{min-width:1180px}.dm-table th{height:50px;padding:11px 9px;font-size:13px}.dm-table td{padding:8px}.dm-cell{height:45px;font-size:14px}.dm-count-label{font-size:12px}.dm-count{height:40px}.dm-metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.dm-metric b{font-size:19px}.dm-metric span{font-size:12px}.dm-table-bottom{gap:12px}}
+
+
+.firebase-panel{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 16px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}.firebase-copy{display:grid;gap:4px;min-width:0}.firebase-copy strong{font-size:14px;line-height:1.3}.firebase-copy span{font-size:12px;line-height:1.45;color:var(--muted)}.firebase-actions{display:flex;gap:8px;flex-shrink:0}.firebase-connect,.firebase-disconnect,.firebase-cancel{min-height:42px;border-radius:var(--border-radius-md,8px);padding:0 12px;font:600 13px var(--font-sans,Arial,sans-serif);cursor:pointer}.firebase-connect{border:1px solid var(--accent);background:var(--accent);color:#fff}.firebase-disconnect,.firebase-cancel{border:1px solid var(--line);background:var(--paper);color:var(--ink)}.firebase-modal[hidden]{display:none}.firebase-modal{position:fixed;inset:0;z-index:120;display:grid;place-items:center;padding:16px}.firebase-shade{position:absolute;inset:0;background:rgba(20,23,19,.5)}.firebase-dialog{position:relative;width:min(100%,460px);max-height:calc(100% - 24px);overflow:auto;padding:22px;border:1px solid var(--line);border-radius:14px;background:var(--paper);color:var(--ink)}.firebase-dialog h3{font-size:21px;margin:0 0 8px}.firebase-dialog p{font-size:13px;line-height:1.5;color:var(--muted);margin:0 0 14px}.firebase-dialog form{display:grid;gap:8px}.firebase-dialog label{font-size:13px;font-weight:600;margin-top:3px}.firebase-dialog input{width:100%;height:46px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--border-radius-md,8px);background:var(--paper);color:var(--ink);font:15px var(--font-sans,Arial,sans-serif)}.firebase-dialog-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:8px}.firebase-error{white-space:pre-line;padding:10px;border:1px solid #e2b9b6;border-radius:8px;background:#fff2f0;color:#8f2d28!important;margin:4px 0!important}.firebase-note{padding-top:12px;margin-top:12px!important;border-top:1px solid var(--line)}.firebase-public{margin-top:16px;padding:12px;border:1px solid #d89464;border-radius:9px;background:#fff5eb}.firebase-public h4{margin:0 0 6px;font-size:14px}.firebase-public p{margin:0 0 10px;color:#783a24}.firebase-consent{display:flex;align-items:flex-start;gap:9px;margin:8px 0 12px!important;font-weight:400!important;line-height:1.4}.firebase-consent input{width:18px;height:18px;flex:0 0 auto;margin:1px 0}.firebase-public button{width:100%}.firebase-public button:disabled{opacity:.5;cursor:not-allowed}.firebase-panel[data-state="connected"]{border-color:#9dbb9a}.firebase-panel[data-state="error"]{border-color:#d79a94}
+@media(max-width:540px){.firebase-panel{align-items:flex-start;flex-direction:column}.firebase-actions{width:100%}.firebase-actions button{flex:1}.firebase-dialog{padding:18px}}
+
+</style>
+<script>
+(()=>{const app=document.getElementById('dm-app');if(!app)return;const blank=()=>({name:'',fb:'',lead:'',leadsCount:'',calls:'',trippings:'',closed:''});const makeDay=(id)=>({id,title:'Day '+id,rows:[blank(),blank(),blank()],savedRows:[],dirty:false});const profileMemory=Object.create(null);let activeProfile=(()=>{try{return new URLSearchParams(location.hash.slice(1)).get('member')}catch(e){return null}})();const profileKeyFor=id=>id&&id!=='kurt'?'dm-tracker-data-'+id:'dm-tracker-data';let profileKey=profileKeyFor(activeProfile);function readProfile(id){const k=profileKeyFor(id);try{const v=localStorage.getItem(k);if(v)return JSON.parse(v)}catch(e){}return profileMemory[k]||null}function freshState(stored){return stored&&Array.isArray(stored.days)&&stored.days.length?{days:stored.days,active:stored.active||stored.days[0].id}:{days:[makeDay(1),makeDay(2)],active:1}}let state=freshState(readProfile(activeProfile));let nextId=Math.max(0,...state.days.map(d=>Number(d.id)||0))+1;function persist(){profileMemory[profileKey]=JSON.parse(JSON.stringify(state));try{localStorage.setItem(profileKey,JSON.stringify(state))}catch(e){}window.TeamCloud?.writeProfile(activeProfile,state)}function switchProfile(id){persist();activeProfile=id;profileKey=profileKeyFor(id);state=freshState(readProfile(id));nextId=Math.max(0,...state.days.map(d=>Number(d.id)||0))+1;render()}function applyRemoteProfile(id,value){const k=profileKeyFor(id);profileMemory[k]=value?JSON.parse(JSON.stringify(value)):null;try{if(value)localStorage.setItem(k,JSON.stringify(value));else localStorage.removeItem(k)}catch(e){}if(id===activeProfile&&value&&JSON.stringify(value)!==JSON.stringify(state)){state=freshState(value);nextId=Math.max(0,...state.days.map(d=>Number(d.id)||0))+1;render()}}const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const getDay=()=>state.days.find(d=>d.id===state.active);function stats(rows){const nonempty=rows.filter(r=>r.name.trim());return{prospects:nonempty.length,no:nonempty.filter(r=>r.lead==='No response').length,active:nonempty.filter(r=>r.lead==='Active Prospect Leads'||r.lead==='Leads').length,pl:nonempty.filter(r=>r.lead==='PL').length,leadCount:nonempty.filter(r=>['Active Prospect Leads','Leads','PL'].includes(r.lead)).reduce((total,r)=>total+(Number.parseInt(r.leadsCount,10)||0),0),calls:nonempty.filter(r=>r.calls.trim()).length,trips:nonempty.filter(r=>r.trippings.trim()).length,closed:nonempty.filter(r=>r.closed.trim()).length}}function dayCard(d){const s=stats(d.savedRows);return `<button class="dm-day" type="button" data-action="select-day" data-id="${d.id}" aria-pressed="${d.id===state.active}"><span class="dm-day-title">${esc(d.title)}</span><span class="dm-day-line"><span>Prospects</span><strong>${s.prospects}</strong></span><span class="dm-day-line"><span>Leads · Calls · Closed</span><strong>${s.leadCount} · ${s.calls} · ${s.closed}</strong></span><span class="dm-day-empty">${d.savedRows.length?'Saved results':'Wala pang saved results'}</span></button>`}function render(){document.getElementById('day-count').textContent=state.days.length+' '+(state.days.length===1?'day':'days');document.getElementById('days').innerHTML=state.days.map(dayCard).join('');const d=getDay();if(!d){document.getElementById('work').innerHTML='<div class="dm-empty">Pumili ng day card para buksan ang data.</div>';return}const rows=d.rows.map((r,i)=>`<tr><td><input class="dm-cell" data-row="${i}" data-key="name" value="${esc(r.name)}" placeholder="Pangalan" aria-label="Name, row ${i+1}"></td><td><input class="dm-cell" data-row="${i}" data-key="fb" value="${esc(r.fb)}" placeholder="Facebook link" aria-label="FB link, row ${i+1}"></td><td><div class="dm-lead-cell"><select class="dm-cell dm-status ${r.lead==='No response'?'status-none':r.lead==='PL'?'status-pl':(r.lead==='Leads'||r.lead==='Active Prospect Leads')?'status-active':''}" data-row="${i}" data-key="lead" aria-label="Lead status, row ${i+1}"><option value="" ${!r.lead?'selected':''}>Pumili ng status</option><option value="No response" ${r.lead==='No response'?'selected':''}>No response</option><option value="Active Prospect Leads" ${r.lead==='Active Prospect Leads'?'selected':''}>Active Prospect Leads</option><option value="Leads" ${r.lead==='Leads'?'selected':''}>Leads</option><option value="PL" ${r.lead==='PL'?'selected':''}>PL</option></select><label class="dm-count-label">Bilang ng leads<input class="dm-cell dm-count" type="number" inputmode="numeric" min="0" step="1" data-row="${i}" data-key="leadsCount" value="${esc(r.leadsCount||'')}" ${['Active Prospect Leads','Leads','PL'].includes(r.lead)?'':'disabled'} placeholder="0" aria-label="Bilang ng leads, row ${i+1}"></label></div></td><td><input class="dm-cell" data-row="${i}" data-key="calls" value="${esc(r.calls)}" placeholder="Ilagay" aria-label="Cold calls, row ${i+1}"></td><td><input class="dm-cell" data-row="${i}" data-key="trippings" value="${esc(r.trippings)}" placeholder="Ilagay" aria-label="Trippings, row ${i+1}"></td><td><input class="dm-cell" data-row="${i}" data-key="closed" value="${esc(r.closed)}" placeholder="Ilagay" aria-label="Closed deals, row ${i+1}"></td><td><button class="dm-remove" type="button" data-action="remove-row" data-row="${i}" aria-label="Alisin ang row ${i+1}">×</button></td></tr>`).join('');const s=stats(d.rows);document.getElementById('work').innerHTML=`<div class="dm-work-head"><div><h3>${esc(d.title)} records</h3><p>Isang prospect bawat row. I-scroll pakaliwa/pakanan para sa lahat ng column.</p></div><div class="dm-actions"><button class="dm-quiet" type="button" data-action="add-row">+ Add row</button><button class="dm-save" type="button" data-action="save" ${d.dirty?'':'disabled'}>${d.dirty?'Save changes':'Saved'}</button></div></div><p class="dm-table-note">Piliin ang colored status, tapos ilagay ang bilang ng leads. No response ay red at walang lead count; Active Prospect Leads / Leads ay green; PL ay blue.</p><div class="dm-table-wrap" role="region" aria-label="Editable ${esc(d.title)} data table" tabindex="0"><table class="dm-table"><thead><tr><th>Name</th><th>FB link</th><th>Leads</th><th>Cold calls</th><th>Trippings</th><th>Closed deals</th><th aria-label="Actions"></th></tr></thead><tbody>${rows}</tbody></table></div><div class="dm-table-bottom"><button class="dm-addrow" type="button" data-action="add-row">+ Magdagdag ng prospect</button><span class="dm-draft-state">${d.dirty?'May unsaved changes':'Walang unsaved changes'}</span></div><div class="dm-metrics"><div class="dm-metric"><b>${s.prospects}</b><span>Prospects (may pangalan)</span></div><div class="dm-metric red"><b>${s.no}</b><span>No response</span></div><div class="dm-metric green"><b>${s.active}</b><span>Active / Leads</span></div><div class="dm-metric blue"><b>${s.pl}</b><span>PL</span></div><div class="dm-metric"><b>${s.leadCount}</b><span>Bilang ng leads</span></div><div class="dm-metric"><b>${s.calls}</b><span>Cold calls filled</span></div><div class="dm-metric"><b>${s.trips} / ${s.closed}</b><span>Trippings / Closed deals</span></div></div>`}function updateDraft(){const d=getDay();if(!d)return;const btn=app.querySelector('[data-action="save"]');if(btn){btn.disabled=false;btn.textContent='Save changes'}const note=app.querySelector('.dm-draft-state');if(note)note.textContent='May unsaved changes';const m=app.querySelector('.dm-metrics');if(m){const s=stats(d.rows),vals=m.querySelectorAll('.dm-metric b');[s.prospects,s.no,s.active,s.pl,s.leadCount,s.calls,`${s.trips} / ${s.closed}`].forEach((v,i)=>vals[i].textContent=v)}}app.addEventListener('input',e=>{const t=e.target;if(!t.matches('[data-row][data-key]'))return;const d=getDay();if(!d)return;d.rows[Number(t.dataset.row)][t.dataset.key]=t.value;d.dirty=true;persist();updateDraft()});app.addEventListener('change',e=>{const t=e.target;if(!t.matches('select[data-row][data-key="lead"]'))return;const d=getDay();if(!d)return;const row=d.rows[Number(t.dataset.row)];row.lead=t.value;const canCount=['Active Prospect Leads','Leads','PL'].includes(t.value);if(!canCount)row.leadsCount='';const count=app.querySelector(`input[data-row="${t.dataset.row}"][data-key="leadsCount"]`);if(count){count.disabled=!canCount;count.value=row.leadsCount||''}t.classList.remove('status-none','status-active','status-pl');if(t.value==='No response')t.classList.add('status-none');else if(t.value==='PL')t.classList.add('status-pl');else if(t.value==='Leads'||t.value==='Active Prospect Leads')t.classList.add('status-active');d.dirty=true;persist();updateDraft()});app.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(!b)return;const action=b.dataset.action;if(action==='add-day'){const id=nextId++;state.days.push(makeDay(id));state.active=id;persist();render()}else if(action==='select-day'){state.active=Number(b.dataset.id);persist();render()}else if(action==='add-row'){getDay().rows.push(blank());getDay().dirty=true;persist();render()}else if(action==='remove-row'){const d=getDay();d.rows.splice(Number(b.dataset.row),1);d.dirty=true;persist();render()}else if(action==='save'){const d=getDay();d.savedRows=JSON.parse(JSON.stringify(d.rows.filter(r=>Object.values(r).some(v=>String(v).trim()))));d.dirty=false;persist();render()}});window.DMTracker={switchProfile,readProfile,applyRemoteProfile};render()})();
+</script>
+      </div>
+    </div>
+<script>
+(()=>{const app=document.getElementById('dm-app');if(!app)return;const defaults=[['kurt','Kurt','#dce7cf'],['jessie','Jessie','#ead8bf'],['jhay-c','Jhay-C','#d5e5e5'],['james','James','#e8d7dc'],['jhomaen','Jhomaen','#e4dfc8'],['marj','Marj','#d9e2ef'],['ronnie','Ronnie','#efd9c6'],['jenielou','Jenielou','#d5e2d4'],['janel','janel','#e7dbea'],['anna','anna','#f0dfb8'],['cjay','Cjay','#d7e4e7']];const key='team-data-members-v1';const validColor=c=>/^#[0-9a-fA-F]{6}$/.test(c||'')?c:'#dce7cf';const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));let sessionMembers=null;function readMembers(){try{const saved=JSON.parse(localStorage.getItem(key));if(Array.isArray(saved)){sessionMembers=saved;return saved}}catch(e){}if(sessionMembers)return sessionMembers;const list=defaults.map(([id,name,color])=>({id,name,color}));sessionMembers=list;try{localStorage.setItem(key,JSON.stringify(list))}catch(e){}return list}let members=readMembers();let active=(()=>{try{return new URLSearchParams(location.hash.slice(1)).get('member')}catch(e){return null}})();const member=()=>members.find(m=>m.id===active);function saveMembers(){sessionMembers=JSON.parse(JSON.stringify(members));try{localStorage.setItem(key,JSON.stringify(members))}catch(e){}window.TeamCloud?.writeMembers(members)}function profileData(id){const dataKey=id==='kurt'?'dm-tracker-data':'dm-tracker-data-'+id;try{const v=localStorage.getItem(dataKey);if(v)return JSON.parse(v)}catch(e){}return window.DMTracker?.readProfile(id)||null}function memberCard(m){const data=profileData(m.id);const rows=(data?.days||[]).flatMap(d=>d.savedRows||[]).filter(r=>String(r.name||'').trim());const leads=rows.filter(r=>['Leads','Active Prospect Leads','PL'].includes(r.lead)).reduce((n,r)=>n+(Number.parseInt(r.leadsCount,10)||0),0);return `<article class="team-card" style="--team-color:${validColor(m.color)}"><button type="button" class="team-open" data-action="team-open" data-id="${esc(m.id)}">${esc(m.name)}<span class="team-summary">${rows.length} prospects · ${leads} leads</span></button><div class="team-card-controls"><label class="team-color">Kulay<input type="color" value="${validColor(m.color)}" data-action="team-color" data-id="${esc(m.id)}" aria-label="Palitan ang kulay ng ${esc(m.name)}"></label><button type="button" class="team-delete" data-action="team-delete" data-id="${esc(m.id)}">Delete</button></div></article>`}function renderHome(){active=null;app.classList.remove('is-member');app.classList.add('is-home');document.querySelector('.dm-board').hidden=false;document.getElementById('work').hidden=false;document.querySelector('.dm-board').style.display='';document.getElementById('work').style.display='';document.getElementById('team-home').style.display='';const btn=app.querySelector('.dm-add');btn.innerHTML='<span aria-hidden="true">+</span> Add new member';btn.setAttribute('aria-label','Add new member');document.getElementById('view-kicker').textContent='TEAM DIRECTORY';document.getElementById('view-title').textContent='Data Management';document.getElementById('view-subtitle').textContent='Pumili ng member para buksan ang sariling tracker.';drawCards()}function drawCards(){document.getElementById('team-count').textContent=members.length+' '+(members.length===1?'member':'members');document.getElementById('team-rail').innerHTML=members.length?members.map(memberCard).join(''):'<div class="team-empty">Wala pang member. Pindutin ang Add new member para magsimula.</div>';document.getElementById('team-swipe').hidden=members.length<3}function goMember(id){active=id;try{history.replaceState(null,'','#member='+encodeURIComponent(id))}catch(e){}window.DMTracker?.switchProfile(id);showMember()}function showMember(){const m=member();if(!m){history.replaceState(null,'',location.pathname+location.search);renderHome();return}app.classList.remove('is-home');app.classList.add('is-member');document.getElementById('team-home').style.display='none';const btn=app.querySelector('.dm-add');btn.innerHTML='<span aria-hidden="true">+</span> Add day';btn.setAttribute('aria-label','Add day');document.getElementById('view-kicker').textContent='MEMBER TRACKER';document.getElementById('view-title').textContent=m.name;document.getElementById('view-subtitle').textContent='Sariling Data Management records ni '+m.name+'.';let back=app.querySelector('.team-back');if(!back){back=document.createElement('button');back.type='button';back.className='team-back';back.dataset.action='team-back';back.textContent='← All members';app.querySelector('.dm-head').appendChild(back)}}function openAdd(){document.getElementById('add-modal').hidden=false;document.getElementById('member-name').focus()}function closeAdd(){document.getElementById('add-modal').hidden=true;document.getElementById('add-form').reset()}app.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(!b)return;const a=b.dataset.action;if(a==='team-open'){e.preventDefault();e.stopImmediatePropagation();goMember(b.dataset.id)}else if(a==='team-back'){e.preventDefault();e.stopImmediatePropagation();try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}active=null;renderHome()}else if(a==='team-delete'){e.preventDefault();e.stopImmediatePropagation();const m=members.find(x=>x.id===b.dataset.id);if(m&&confirm(`Delete ${m.name} and remove their tracker data from this browser?`)){localStorage.removeItem(m.id==='kurt'?'dm-tracker-data':'dm-tracker-data-'+m.id);window.TeamCloud?.deleteProfile(m.id);members=members.filter(x=>x.id!==m.id);saveMembers();drawCards()}}else if(a==='close-add'){e.preventDefault();e.stopImmediatePropagation();closeAdd()}else if(a==='add-day'&&!active){e.preventDefault();e.stopImmediatePropagation();openAdd()}},true);app.addEventListener('input',e=>{const t=e.target;if(!t.matches('input[type="color"][data-action="team-color"]'))return;const m=members.find(x=>x.id===t.dataset.id);if(m){m.color=validColor(t.value);t.closest('.team-card').style.setProperty('--team-color',m.color);saveMembers()}});document.getElementById('add-form').addEventListener('submit',e=>{e.preventDefault();const name=document.getElementById('member-name').value.trim();if(!name)return;const id='member-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);members.push({id,name,color:'#dce7cf'});saveMembers();closeAdd();drawCards()});window.TeamDirectory={readMembers:()=>JSON.parse(JSON.stringify(members)),applyMembers(list){if(!Array.isArray(list))return;members=list.map(m=>({id:String(m.id),name:String(m.name),color:validColor(m.color)}));sessionMembers=JSON.parse(JSON.stringify(members));try{localStorage.setItem(key,JSON.stringify(members))}catch(e){}if(active){if(!member()){active=null;try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}renderHome()}else showMember()}else drawCards()}};if(active)showMember();else renderHome()})();
+</script>
+<script>
+(()=>{
+const DB='https://data-management-5b19e-default-rtdb.asia-southeast1.firebasedatabase.app';
+const ROOT='team-data-management', MEMBER_KEY='team-data-members-v1', API_KEY_STORE='dm-firebase-web-api-key';
+const panel=document.querySelector('.firebase-panel'), title=document.getElementById('firebase-title'), detail=document.getElementById('firebase-detail'), modal=document.getElementById('firebase-modal'), form=document.getElementById('firebase-form'), errorBox=document.getElementById('firebase-error'), apiInput=document.getElementById('firebase-api-key'), emailInput=document.getElementById('firebase-email'), passwordInput=document.getElementById('firebase-password'), submit=document.getElementById('firebase-submit');
+let apiKey='',idToken='',refreshToken='',expiresAt=0,email='',userId='',stream=null,refreshTimer=null,readTimer=null,connected=false;let cloudState={members:null,profiles:{}};const pending=new Map(),queues=new Map();
+try{apiInput.value=localStorage.getItem(API_KEY_STORE)||''}catch(e){}
+function status(state,heading,message){panel.dataset.state=state;title.textContent=heading;detail.textContent=message;document.getElementById('firebase-open').textContent=state==='connected'?'Account settings':'Connect Firebase';document.getElementById('firebase-disconnect').hidden=state!=='connected'}
+function showError(message){errorBox.textContent=message;errorBox.hidden=false}function hideError(){errorBox.hidden=true;errorBox.textContent=''}
+function openModal(){hideError();if(!apiInput.value){try{apiInput.value=localStorage.getItem(API_KEY_STORE)||''}catch(e){}}modal.hidden=false;(apiInput.value?emailInput:apiInput).focus()}function closeModal(){modal.hidden=true;passwordInput.value=''}
+document.getElementById('firebase-open').addEventListener('click',openModal);modal.addEventListener('click',e=>{if(e.target.closest('[data-firebase-close]'))closeModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.hidden)closeModal()});
+function endpoint(path,token){const parts=path?path.split('/').map(encodeURIComponent).join('/')+'.json':'.json';return DB+'/'+parts+(token?'?auth='+encodeURIComponent(token):'')}
+async function firebaseRequest(url,options={}){let response;try{response=await fetch(url,options)}catch(e){throw new Error('Hindi maabot ang Firebase. Suriin ang internet connection at buksan ang file sa browser na may network access.')}let body={};try{body=await response.json()}catch(e){}if(!response.ok){const raw=body?.error?.message||body?.error||('HTTP '+response.status);if(String(raw).includes('PERMISSION_DENIED')||response.status===401||response.status===403)throw new Error('Tinanggihan ng Realtime Database Rules ang access. Suriin kung pinapayagan ang kasalukuyang mode (public access o authenticated user) sa path na team-data-management.');throw new Error(String(raw))}return body}
+const jsonOptions=(method,body)=>({method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+function browserSeed(){let members=window.TeamDirectory?.readMembers?.();if(!Array.isArray(members)){try{members=JSON.parse(localStorage.getItem(MEMBER_KEY))}catch(e){}}if(!Array.isArray(members))members=[];const profiles={};for(const m of members){const k=m.id==='kurt'?'dm-tracker-data':'dm-tracker-data-'+m.id;try{const data=localStorage.getItem(k);if(data)profiles[m.id]=JSON.parse(data)}catch(e){const data=window.DMTracker?.readProfile(m.id);if(data)profiles[m.id]=data}}return{members,profiles}}
+function stable(value){return JSON.stringify(value??null)}
+function applyState(raw){const members=Array.isArray(raw?.members)?raw.members:(cloudState.members||window.TeamDirectory?.readMembers?.()||[]);const profiles=raw?.profiles&&typeof raw.profiles==='object'?raw.profiles:{};const changedMembers=stable(members)!==stable(cloudState.members);const keys=new Set([...Object.keys(cloudState.profiles||{}),...Object.keys(profiles)]);const changedProfiles=[];for(const id of keys)if(stable(profiles[id])!==stable(cloudState.profiles?.[id]))changedProfiles.push(id);cloudState={members:JSON.parse(JSON.stringify(members)),profiles:JSON.parse(JSON.stringify(profiles))};if(changedMembers)window.TeamDirectory?.applyMembers(members);for(const id of changedProfiles)window.DMTracker?.applyRemoteProfile(id,profiles[id]||null)}
+function scheduleWrite(path,value,remove=false){if(!connected)return;const copy=value===undefined?null:JSON.parse(JSON.stringify(value));const old=pending.get(path);if(old)clearTimeout(old);pending.set(path,setTimeout(()=>{pending.delete(path);const previous=queues.get(path)||Promise.resolve();const current=previous.catch(()=>{}).then(async()=>{await firebaseRequest(endpoint(ROOT+'/'+path,idToken),jsonOptions('PUT',remove?null:copy))});queues.set(path,current);current.catch(e=>status('error','Firebase sync error',e.message)).then(()=>{if(queues.get(path)===current)queues.delete(path)})},350))}
+function writeMembers(list){cloudState.members=JSON.parse(JSON.stringify(list));scheduleWrite('members',list)}function writeProfile(id,value){if(!id)return;cloudState.profiles[id]=JSON.parse(JSON.stringify(value));scheduleWrite('profiles/'+id,value)}function deleteProfile(id){delete cloudState.profiles[id];scheduleWrite('profiles/'+id,null,true)}
+async function refreshState(){if(!connected)return;const raw=await firebaseRequest(endpoint(ROOT,idToken));applyState(raw||{members:cloudState.members||[],profiles:{}})}
+function startStream(){if(stream)stream.close();stream=new EventSource(endpoint(ROOT,idToken));for(const name of ['put','patch'])stream.addEventListener(name,()=>{clearTimeout(readTimer);readTimer=setTimeout(()=>refreshState().catch(e=>status('error','Firebase sync error',e.message)),180)});stream.addEventListener('cancel',()=>status('error','Firebase sync paused','Suriin ang Realtime Database Rules at account access.'));stream.addEventListener('auth_revoked',()=>refreshAuth().catch(e=>status('error','Firebase sign-in expired',e.message)));stream.onerror=()=>{if(stream&&stream.readyState===EventSource.CLOSED)status('error','Firebase sync interrupted','Hindi na nakakonekta ang live sync. Pindutin ang Connect Firebase para muling mag-sign in.')}}
+function planRefresh(){clearTimeout(refreshTimer);const wait=Math.max(15000,expiresAt-Date.now()-60000);refreshTimer=setTimeout(()=>refreshAuth().catch(e=>status('error','Firebase sign-in expired',e.message)),wait)}
+async function refreshAuth(){const response=await firebaseRequest('https://securetoken.googleapis.com/v1/token?key='+encodeURIComponent(apiKey),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'refresh_token',refresh_token:refreshToken})});idToken=response.id_token;refreshToken=response.refresh_token;expiresAt=Date.now()+(Number(response.expires_in)||3600)*1000;planRefresh();if(stream){stream.close();startStream()}}
+function readableError(message){if(message==='EMAIL_NOT_FOUND'||message==='INVALID_PASSWORD'||message==='INVALID_LOGIN_CREDENTIALS')return 'Hindi tama ang email o password. Suriin ang Firebase Authentication account.';if(message==='OPERATION_NOT_ALLOWED')return 'Hindi pa naka-enable ang Email/Password provider sa Firebase Authentication.';if(message==='API_KEY_INVALID')return 'Hindi valid ang Web API key na inilagay.';if(message==='USER_DISABLED')return 'Naka-disable ang Firebase account na ito.';return message}
+async function connect(api,emailValue,password){apiKey=api;email=emailValue;const answer=await firebaseRequest('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='+encodeURIComponent(apiKey),jsonOptions('POST',{email:emailValue,password,returnSecureToken:true}));idToken=answer.idToken;refreshToken=answer.refreshToken;connected=true;userId=answer.localId||'';expiresAt=Date.now()+(Number(answer.expiresIn)||3600)*1000;email=answer.email||emailValue;planRefresh();let remote=await firebaseRequest(endpoint(ROOT,idToken));if(remote===null){const seed=browserSeed();await firebaseRequest(endpoint(ROOT,idToken),jsonOptions('PUT',seed));remote=seed}else if(!Array.isArray(remote.members)){const seed=browserSeed();remote={...remote,members:seed.members,profiles:remote.profiles||{}};await firebaseRequest(endpoint(ROOT+'/members',idToken),jsonOptions('PUT',remote.members))}applyState(remote);startStream();status('connected','Firebase sync: connected','Signed in as '+email+'. Firebase Auth UID: '+userId+'. Member list and tracker changes sync to this project.');try{localStorage.setItem(API_KEY_STORE,apiKey)}catch(e){}closeModal()}
+form.addEventListener('submit',async e=>{e.preventDefault();hideError();connected=false;userId='';if(stream){stream.close();stream=null}clearTimeout(refreshTimer);idToken='';refreshToken='';expiresAt=0;submit.disabled=true;submit.textContent='Connecting…';try{const api=apiInput.value.trim(),em=emailInput.value.trim(),pw=passwordInput.value;if(!api||!em||!pw)throw new Error('Ilagay ang API key, email, at password.');try{localStorage.setItem(API_KEY_STORE,api)}catch(e){}await connect(api,em,pw)}catch(e){connected=false;idToken='';refreshToken='';clearTimeout(refreshTimer);if(stream){stream.close();stream=null}const msg=readableError(e.message)+(userId?'\nFirebase Auth UID: '+userId:'');status('error','Firebase connection failed',msg);showError(msg)}finally{passwordInput.value='';submit.disabled=false;submit.textContent='Sign in and connect'}});
+document.getElementById('firebase-disconnect').addEventListener('click',()=>{if(stream){stream.close();stream=null}clearTimeout(refreshTimer);connected=false;idToken='';refreshToken='';expiresAt=0;userId='';status('disconnected','Firebase sync: disconnected','Nasa browser pa rin ang local backup.');});
+const publicConsent=document.getElementById('firebase-public-confirm'),publicButton=document.getElementById('firebase-open-rules');publicConsent.addEventListener('change',()=>publicButton.disabled=!publicConsent.checked);publicButton.addEventListener('click',async()=>{if(!publicConsent.checked)return;hideError();if(stream){stream.close();stream=null}clearTimeout(refreshTimer);idToken='';refreshToken='';userId='';connected=true;publicButton.disabled=true;publicButton.textContent='Connecting…';try{const remote=await firebaseRequest(endpoint(ROOT,''));if(remote===null){const seed=browserSeed();await firebaseRequest(endpoint(ROOT,''),jsonOptions('PUT',seed));applyState(seed)}else{applyState(remote);if(!Array.isArray(remote.members)){const seed=browserSeed();const members=seed.members;await firebaseRequest(endpoint(ROOT+'/members',''),jsonOptions('PUT',members));applyState({...remote,members})}}startStream();status('connected','Firebase sync: connected without sign-in','Public read/write rules are active. Anyone who knows the database URL can read or change this data.');closeModal()}catch(e){connected=false;const msg=readableError(e.message);status('error','Firebase connection failed',msg);showError(msg)}finally{publicConsent.checked=false;publicButton.disabled=true;publicButton.textContent='Connect using public rules'}});window.TeamCloud={writeMembers,writeProfile,deleteProfile};
+})();
+</script>
+</body>
+</html>
